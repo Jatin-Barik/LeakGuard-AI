@@ -1,0 +1,138 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Download, FileText, Share2, Mail } from "lucide-react";
+import { toast } from "sonner";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { demoDashboardStats, demoLeakScore, demoRecommendations } from "@/lib/demo-data";
+import { formatCurrency } from "@/lib/utils";
+
+export default function ExportPage() {
+  const handleExport = (type: string) => {
+    toast.success(`${type} report generated successfully!`);
+  };
+
+  return (
+    <DashboardShell
+      title="Export & Share"
+      subtitle="Generate reports and share your savings analysis"
+    >
+      <div className="grid md:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-indigo-400" />
+                PDF Report
+              </CardTitle>
+              <CardDescription>
+                Comprehensive subscription analysis with Leak Score and recommendations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg bg-secondary/50 p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Leak Score</span>
+                  <span className="font-medium">{demoLeakScore.overall}/100</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Monthly Spend</span>
+                  <span>{formatCurrency(demoDashboardStats.totalMonthlySpend)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Potential Savings</span>
+                  <span className="text-emerald-400">{formatCurrency(demoDashboardStats.potentialSavings)}/mo</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Recommendations</span>
+                  <span>{demoRecommendations.length} actions</span>
+                </div>
+              </div>
+              <Button variant="gradient" className="w-full" onClick={() => handleExport("PDF")}>
+                <Download className="h-4 w-4" />
+                Download PDF Report
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Download className="h-4 w-4 text-indigo-400" />
+                CSV Export
+              </CardTitle>
+              <CardDescription>
+                Export all subscriptions and transactions as spreadsheet data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={() => handleExport("CSV")}>
+                <Download className="h-4 w-4" />
+                Export CSV Data
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Share2 className="h-4 w-4 text-indigo-400" />
+                Share Report
+              </CardTitle>
+              <CardDescription>
+                Generate a shareable link to your savings analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={() => handleExport("Share link")}>
+                <Share2 className="h-4 w-4" />
+                Generate Share Link
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Mail className="h-4 w-4 text-indigo-400" />
+                Cancellation Emails
+              </CardTitle>
+              <CardDescription>
+                AI-generated cancellation and negotiation email templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={() => handleExport("Email templates")}>
+                <Mail className="h-4 w-4" />
+                Generate Email Templates
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </DashboardShell>
+  );
+}
