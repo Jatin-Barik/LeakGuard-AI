@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/providers/auth-provider";
+import { demoAccount } from "@/lib/demo-data";
 
 export default function SignInPage() {
   const { enabled, signInWithOAuth } = useAuth();
@@ -38,10 +39,19 @@ export default function SignInPage() {
               <Button variant="outline" className="w-full" disabled={isSigningIn} onClick={() => signIn("google")}>Continue with Google</Button>
               <Button variant="outline" className="w-full" disabled={isSigningIn} onClick={() => signIn("github")}><GitFork className="h-4 w-4" />Continue with GitHub</Button>
             </> : <>
-              <Input type="email" placeholder="Email address" disabled />
-              <Button variant="gradient" className="w-full" asChild><Link href="/dashboard">Explore the secure demo <ArrowRight className="h-4 w-4" /></Link></Button>
+              <div className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Demo email</p>
+                  <Input type="email" value={demoAccount.email} readOnly className="mt-1 bg-secondary/30" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Demo password</p>
+                  <Input type="text" value={demoAccount.password} readOnly className="mt-1 bg-secondary/30" />
+                </div>
+              </div>
+              <Button variant="gradient" className="w-full" asChild><Link href="/dashboard">Enter preloaded demo <ArrowRight className="h-4 w-4" /></Link></Button>
             </>}
-            <p className="text-center text-xs text-muted-foreground">{enabled ? "Your session is securely persisted by Supabase." : "Configure Supabase environment variables to enable Google and GitHub sign-in."}</p>
+            <p className="text-center text-xs text-muted-foreground">{enabled ? "Your session is securely persisted by Supabase." : "Demo mode loads financial data instantly, with no upload or AI wait time."}</p>
           </CardContent>
         </Card>
       </motion.div>

@@ -35,7 +35,7 @@ def _extract_workbook(content: bytes) -> str:
                     rows.append(",".join(values))
         return "\n".join(rows)
     except Exception as error:
-        raise HTTPException(status_code=400, detail=f"Could not read Excel file: {error}") from error
+        raise HTTPException(status_code=400, detail="Could not read this Excel file") from error
 
 
 def _extract_pdf(content: bytes) -> str:
@@ -46,7 +46,7 @@ def _extract_pdf(content: bytes) -> str:
         if text.strip():
             return text
     except Exception as error:
-        raise HTTPException(status_code=400, detail=f"Could not read PDF: {error}") from error
+        raise HTTPException(status_code=400, detail="Could not read this PDF") from error
 
     try:
         from pdf2image import convert_from_bytes

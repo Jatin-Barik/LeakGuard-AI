@@ -1,52 +1,50 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, Sparkles, Mic, Volume2 } from "lucide-react";
+import { Bot, Mail, Send, Sparkles, User, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { advisorQuickPrompts } from "@/lib/demo-data";
+import {
+  advisorQuickPrompts,
+  demoDashboardStats,
+  demoInsights,
+  demoSubscriptions,
+  emailTemplates,
+  monthlyFinancialStory,
+} from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/utils";
 import type { ChatMessage } from "@/types";
-import { api } from "@/services/api";
-import { demoDashboardStats, demoSubscriptions } from "@/lib/demo-data";
 
-type SpeechRecognitionInstance = {
-  lang: string;
-  interimResults: boolean;
-  start: () => void;
-  onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-  onend: () => void;
-  onerror: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+const biggestRecurring = demoSubscriptions
+  .filter((subscription) => subscription.isActive)
+  .sort((a, b) => b.amount - a.amount)
+  .slice(0, 5)
+  .map((subscription, index) => `${index + 1}. ${subscription.name}: ${formatCurrency(subscription.amount)}/mo`)
+  .join("\n");
 
 const demoResponses: Record<string, string> = {
-  "where am i wasting money?":
-    "Based on your data, I've identified **$96.96/month** in potential waste:\n\n1. **Planet Fitness** ($24.99/mo) — Only 8% usage. You visited twice in 90 days.\n2. **Duplicate Music Services** ($21.98/mo) — Spotify (91% usage), plus unused YouTube Music & Apple Music.\n3. **NYT Digital** ($17/mo) — 15% engagement, only 3 articles in 60 days.\n4. **Disney+** ($13.99/mo) — 18% usage while you have Netflix & Prime.\n\nYour biggest leak is unused gym membership followed by duplicate streaming services.",
-  "how can i save $200/month?":
-    "To save $200/month, here's an aggressive optimization plan:\n\n**Immediate Cancellations ($78.96/mo):**\n- Planet Fitness: $24.99\n- Apple Music + YouTube Music: $21.98\n- NYT Digital: $17.00\n- Disney+: $13.99\n\n**Downgrades ($22/mo):**\n- Netflix Premium → Standard: $7.00\n- Adobe CC → Photography plan: $15.00\n\n**Negotiations ($15/mo):**\n- Adobe retention discount: ~$15\n\n**Cloud Consolidation ($9.99/mo):**\n- Cancel iCloud+ 2TB, keep Google One\n\n**Total potential: $125.95/mo**\n\nTo reach $200, also consider pausing ChatGPT Plus during low-usage months ($20) and switching to annual billing for Spotify (save ~$24/yr).",
-  "which subscriptions should i cancel?":
-    "Priority cancellation list based on usage data:\n\n🔴 **Cancel Immediately:**\n1. Planet Fitness — 8% usage ($24.99/mo)\n2. Apple Music — 12% usage, duplicate ($10.99/mo)\n3. YouTube Music — 23% usage, duplicate ($10.99/mo)\n\n🟡 **Strong Candidates:**\n4. NYT Digital — 15% usage ($17/mo)\n5. Disney+ — 18% usage ($13.99/mo)\n6. iCloud+ 2TB — duplicate cloud storage ($9.99/mo)\n\n🟢 **Keep:**\n- Spotify (91% usage)\n- ChatGPT Plus (88% usage)\n- Netflix (72% usage despite price hike)",
-  "what changed this month?":
-    "Here's your July 2026 spending analysis:\n\n📈 **Spending up 5.8%** vs June ($216.90 vs $205.10)\n\n**Changes detected:**\n- Netflix charged new price: $22.99 (was $15.49) — +$7.50 impact\n- New ChatGPT Plus charge: $20.00 (first month)\n- Adobe CC increased: $54.99 (was $52.99) — +$2.00\n\n**New subscriptions:** 1 (ChatGPT Plus)\n**Cancelled:** 0\n**Price hikes:** 2\n\nYour Leak Score dropped from 48 to 42 this month due to increased spending and new subscriptions.",
-  "explain my leak score":
-    "Your **Leak Score is 42/100** (Needs Attention). Here's the breakdown:\n\n📊 **Component Scores:**\n- Unused Subscriptions: 28/100 ⚠️\n- Duplicate Subscriptions: 35/100 ⚠️\n- Price Hikes: 52/100\n- Large Expenses: 45/100\n- Spending Trend: 38/100 ⚠️\n\n**Key Issues:**\n1. 3 duplicate subscription groups costing $59.95/mo\n2. Netflix price increased 48.4% ($7.50/mo impact)\n3. Planet Fitness at 8% usage — pure waste\n4. Monthly spend up 23% over 6 months\n\n**To improve to 70+:** Cancel duplicates ($59.95), downgrade Netflix ($7), cancel gym ($24.99). This alone would boost your score to ~68.",
+  "where am i wasting money?": `I found ${formatCurrency(demoDashboardStats.potentialSavings)}/mo in realistic savings opportunities.\n\nTop leaks:\n1. Gym Membership: $24.99/mo with only 8% usage.\n2. Apple Music + YouTube Music: $21.98/mo duplicated by Spotify.\n3. iCloud+ + Dropbox: $21.98/mo duplicated by Google One.\n4. Disney+ and YouTube Premium overlap with Netflix and Prime.\n\nBusiness value: these changes create a starter annual savings plan of ${formatCurrency(demoDashboardStats.projectedSavings)} without touching rent, loans, insurance, or essentials.`,
+  "which subscriptions should i cancel?": `Cancel or pause in this order:\n\nHigh confidence:\n- Gym Membership: save $24.99/mo.\n- Apple Music: save $10.99/mo.\n- YouTube Music: save $10.99/mo.\n- Dropbox Plus: save $11.99/mo.\n\nMedium confidence:\n- Disney+: pause for 60 days.\n- Zomato Gold: cancel unless food delivery usage rebounds.\n\nKeep Spotify, ChatGPT Plus, GitHub Copilot, Internet, Insurance, Student Loan, and Credit Card Bill.`,
+  "explain my leak score.": `Your Leak Score is 42/100, which means your finances are stable but recurring waste is high.\n\nScore drivers:\n- Unused subscriptions: 28/100 because six services show low usage.\n- Duplicates: 35/100 because music, video, cloud, and AI tools overlap.\n- Price hikes: 52/100 after Netflix, Internet, Amazon Prime, and Adobe increases.\n- Spending trend: 38/100 because recurring spend rose 18% month over month.\n\nIf you apply the top three actions, the simulator projects the score moving into the high 60s immediately.`,
+  "how can i save $50 every month?": `A clean $50/month plan:\n\n1. Cancel Gym Membership: $24.99.\n2. Cancel Apple Music: $10.99.\n3. Cancel YouTube Music: $10.99.\n4. Cancel Zomato Gold: $3.59.\n\nTotal: $50.56/month, or $606.72/year.\n\nThis is the lowest-friction plan because it removes duplicates and low-usage services without changing your core workflow.`,
+  "show my biggest recurring expenses.": `Here are your biggest recurring expenses:\n\n${biggestRecurring}\n\nThe AI recommendation engine does not suggest cancelling essentials like loans or insurance. It focuses on negotiable, duplicated, or low-usage services.`,
+  "generate a cancellation email.": `${emailTemplates.cancel}\n\nI can also generate discount, downgrade, and pause emails from the Export page.`,
 };
 
 function getResponse(input: string): string {
   const normalized = input.toLowerCase().trim();
-  for (const [key, response] of Object.entries(demoResponses)) {
-    if (normalized.includes(key.slice(0, 20)) || key.includes(normalized.slice(0, 20))) {
-      return response;
-    }
-  }
-  if (normalized.includes("cancel") && normalized.includes("email")) {
-    return `Here's a cancellation email for Planet Fitness:\n\n---\n\n**Subject:** Membership Cancellation Request\n\nDear Planet Fitness Member Services,\n\nI am writing to formally request the cancellation of my membership (Member ID: PF-48291) effective immediately.\n\nDespite my intention to maintain an active lifestyle, I have been unable to utilize the gym facilities regularly due to schedule changes. Per my membership agreement, I understand the cancellation policy and am providing this notice accordingly.\n\nPlease confirm the cancellation in writing and ensure no further charges are applied to my account ending in •••• 4821.\n\nThank you for your assistance.\n\nSincerely,\nAlex Morgan\n\n---\n\n*Generated by LeakGuard AI. Review before sending.*`;
-  }
-  return `Based on your financial data, you're spending **${formatCurrency(216.9)}/month** across 12 active subscriptions with **${formatCurrency(96.96)}/month** in potential savings.\n\nYour Leak Score of **42** indicates significant optimization opportunities. The top actions I'd recommend:\n\n1. Cancel unused gym membership (save $24.99/mo)\n2. Consolidate music streaming to Spotify only (save $21.98/mo)\n3. Review Netflix downgrade options (save $7/mo)\n\nWould you like me to dive deeper into any of these areas?`;
+  const matchedKey = Object.keys(demoResponses).find(
+    (key) => normalized.includes(key.replace(".", "").slice(0, 18)) || key.includes(normalized.slice(0, 18))
+  );
+
+  if (matchedKey) return demoResponses[matchedKey];
+  if (normalized.includes("discount")) return emailTemplates.discount;
+  if (normalized.includes("downgrade")) return emailTemplates.downgrade;
+  if (normalized.includes("pause")) return emailTemplates.pause;
+
+  return `${monthlyFinancialStory.title}\n\n${monthlyFinancialStory.summary}\n\nKey insights:\n- ${demoInsights.slice(0, 4).join("\n- ")}\n\nBest next action: cancel the low-usage gym membership and duplicate music plans first.`;
 }
 
 export function AIAdvisorChat() {
@@ -54,15 +52,13 @@ export function AIAdvisorChat() {
     {
       id: "welcome",
       role: "assistant",
-      content:
-        "Hi Alex! I'm your AI Financial Advisor. I've analyzed your 12 subscriptions and found $96.96/month in potential savings. What would you like to know?",
+      content: `Hi Alex. I already analyzed 12 months, ${demoSubscriptions.length} subscriptions, and 1,200+ transactions. I found ${formatCurrency(demoDashboardStats.potentialSavings)}/mo in potential savings. What should we optimize first?`,
       timestamp: new Date().toISOString(),
-      suggestions: advisorQuickPrompts.slice(0, 4),
+      suggestions: advisorQuickPrompts,
     },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageSequence = useRef(0);
 
@@ -71,68 +67,35 @@ export function AIAdvisorChat() {
   }, [messages, isTyping]);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     messageSequence.current += 1;
-    const sentAt = new Date().toISOString();
-    const userMsg: ChatMessage = {
-      id: `user_${messageSequence.current}`,
-      role: "user",
-      content: text,
-      timestamp: sentAt,
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user_${messageSequence.current}`,
+        role: "user",
+        content: text,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
     setInput("");
     setIsTyping(true);
 
-    let response: string;
-    try {
-      const result = await api.chatAdvisor(text, {
-        monthly_spend: demoDashboardStats.totalMonthlySpend,
-        subscription_count: demoDashboardStats.activeSubscriptions,
-        leak_score: demoDashboardStats.leakScore,
-        potential_savings: demoDashboardStats.potentialSavings,
-        subscriptions: demoSubscriptions,
-      });
-      response = result.response;
-    } catch {
-      await new Promise((r) => setTimeout(r, 650));
-      response = getResponse(text);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 420));
 
     messageSequence.current += 1;
-    const assistantMsg: ChatMessage = {
-      id: `assistant_${messageSequence.current}`,
-      role: "assistant",
-      content: response,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, assistantMsg]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `assistant_${messageSequence.current}`,
+        role: "assistant",
+        content: getResponse(text),
+        timestamp: new Date().toISOString(),
+        suggestions: advisorQuickPrompts.filter((prompt) => prompt !== text).slice(0, 3),
+      },
+    ]);
     setIsTyping(false);
-  };
-
-  const startListening = () => {
-    if (typeof window === "undefined") return;
-    const BrowserSpeechRecognition = (window as typeof window & {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    }).SpeechRecognition ?? (window as typeof window & {
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    }).webkitSpeechRecognition;
-
-    if (!BrowserSpeechRecognition) {
-      setInput("Voice input isn't supported by this browser. Please type your question.");
-      return;
-    }
-
-    const recognition = new BrowserSpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.onresult = (event) => setInput(event.results[0][0].transcript);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    setIsListening(true);
-    recognition.start();
   };
 
   const speakLastResponse = () => {
@@ -144,57 +107,56 @@ export function AIAdvisorChat() {
   };
 
   return (
-    <Card className="flex flex-col h-[calc(100vh-12rem)]">
-      <CardHeader className="border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-2">
-            <Sparkles className="h-5 w-5 text-white" />
+    <Card className="flex h-[calc(100vh-12rem)] flex-col">
+      <CardHeader className="shrink-0 border-b border-white/5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-gradient-to-br from-sky-500 to-emerald-500 p-2">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Smart Financial Assistant</CardTitle>
+              <p className="text-xs text-muted-foreground">Preloaded demo intelligence with realistic financial context</p>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-base">AI Financial Advisor</CardTitle>
-            <p className="text-xs text-muted-foreground">Powered by Gemini • Uses your real data</p>
-          </div>
+          <Button type="button" variant="ghost" size="icon" onClick={speakLastResponse} aria-label="Read the latest response aloud">
+            <Volume2 className="h-4 w-4" />
+          </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
-          {messages.map((msg) => (
+      <CardContent className="flex flex-1 flex-col overflow-hidden p-0">
+        <div ref={scrollRef} className="scrollbar-thin flex-1 space-y-4 overflow-y-auto p-6">
+          {messages.map((message) => (
             <motion.div
-              key={msg.id}
+              key={message.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
+              className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}
             >
-              {msg.role === "assistant" && (
-                <div className="rounded-lg bg-indigo-500/20 p-2 h-fit shrink-0">
-                  <Bot className="h-4 w-4 text-indigo-400" />
+              {message.role === "assistant" && (
+                <div className="h-fit rounded-lg bg-sky-500/20 p-2">
+                  <Bot className="h-4 w-4 text-sky-300" />
                 </div>
               )}
-              <div
-                className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
-                  msg.role === "user"
-                    ? "bg-indigo-500/20 text-foreground"
-                    : "bg-secondary/50"
-                }`}
-              >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-                {msg.suggestions && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {msg.suggestions.map((s) => (
+              <div className={`max-w-[82%] rounded-lg px-4 py-3 text-sm ${message.role === "user" ? "bg-sky-500/20" : "bg-secondary/50"}`}>
+                <div className="whitespace-pre-wrap">{message.content}</div>
+                {message.suggestions && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {message.suggestions.map((suggestion) => (
                       <button
-                        key={s}
-                        onClick={() => sendMessage(s)}
-                        className="text-xs px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-colors border border-indigo-500/20"
+                        key={suggestion}
+                        onClick={() => sendMessage(suggestion)}
+                        className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-200 transition-colors hover:bg-sky-500/20"
                       >
-                        {s}
+                        {suggestion}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              {msg.role === "user" && (
-                <div className="rounded-lg bg-secondary p-2 h-fit shrink-0">
+              {message.role === "user" && (
+                <div className="h-fit rounded-lg bg-secondary p-2">
                   <User className="h-4 w-4" />
                 </div>
               )}
@@ -202,17 +164,17 @@ export function AIAdvisorChat() {
           ))}
           {isTyping && (
             <div className="flex gap-3">
-              <div className="rounded-lg bg-indigo-500/20 p-2 h-fit">
-                <Bot className="h-4 w-4 text-indigo-400" />
+              <div className="h-fit rounded-lg bg-sky-500/20 p-2">
+                <Bot className="h-4 w-4 text-sky-300" />
               </div>
-              <div className="bg-secondary/50 rounded-xl px-4 py-3">
+              <div className="rounded-lg bg-secondary/50 px-4 py-3">
                 <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
+                  {[0, 1, 2].map((index) => (
                     <motion.div
-                      key={i}
-                      className="h-2 w-2 rounded-full bg-indigo-400"
+                      key={index}
+                      className="h-2 w-2 rounded-full bg-sky-300"
                       animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                      transition={{ duration: 1, repeat: Infinity, delay: index * 0.2 }}
                     />
                   ))}
                 </div>
@@ -221,41 +183,25 @@ export function AIAdvisorChat() {
           )}
         </div>
 
-        <div className="border-t border-white/5 p-4 shrink-0">
+        <div className="shrink-0 border-t border-white/5 p-4">
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
+            onSubmit={(event) => {
+              event.preventDefault();
               sendMessage(input);
             }}
             className="flex gap-2"
           >
             <Input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your subscriptions, savings, or spending..."
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="Ask about savings, cancellations, score, or emails..."
               className="flex-1 bg-secondary/30"
               disabled={isTyping}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={startListening}
-              disabled={isTyping}
-              aria-label="Ask using your voice"
-            >
-              <Mic className={isListening ? "h-4 w-4 text-red-400 animate-pulse" : "h-4 w-4"} />
+            <Button type="button" variant="outline" size="icon" onClick={() => sendMessage("Generate a cancellation email.")} aria-label="Generate email">
+              <Mail className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={speakLastResponse}
-              aria-label="Read the latest response aloud"
-            >
-              <Volume2 className="h-4 w-4" />
-            </Button>
-            <Button type="submit" variant="gradient" size="icon" disabled={isTyping || !input.trim()}>
+            <Button type="submit" variant="gradient" size="icon" disabled={isTyping || !input.trim()} aria-label="Send message">
               <Send className="h-4 w-4" />
             </Button>
           </form>

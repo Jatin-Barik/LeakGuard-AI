@@ -183,7 +183,7 @@ export default function LandingPage() {
               Everything You Need to <span className="gradient-text">Stop the Leak</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From upload to action — LeakGuard AI handles the entire subscription
+              From upload to action, LeakGuard AI handles the entire subscription
               optimization workflow with enterprise-grade intelligence.
             </p>
           </div>
@@ -246,7 +246,7 @@ export default function LandingPage() {
             <span className="font-semibold text-sm">{siteConfig.name}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © 2026 LeakGuard AI. Built for the National Hackathon.
+            Copyright 2026 LeakGuard AI. Built for the National Hackathon.
           </p>
         </div>
       </footer>

@@ -7,11 +7,15 @@ import {
   BarChart3,
   CreditCard,
   Download,
+  Gauge,
   LayoutDashboard,
   MessageSquare,
+  ReceiptText,
+  Settings,
   Shield,
   Sparkles,
   Upload,
+  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navItems } from "@/config/site";
@@ -24,6 +28,10 @@ const iconMap = {
   MessageSquare,
   Sparkles,
   Download,
+  ReceiptText,
+  Gauge,
+  UserCircle,
+  Settings,
 };
 
 interface SidebarProps {
@@ -72,7 +80,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active"
-                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/10 border border-indigo-500/20"
+                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-sky-500/20 to-emerald-500/10 border border-sky-400/20"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
@@ -87,7 +95,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       {!collapsed && (
         <div className="border-t border-white/5 p-4">
           <div className="rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 p-4">
-            <p className="text-xs font-medium text-indigo-300">Pro Tip</p>
+            <p className="text-xs font-medium text-sky-300">Pro Tip</p>
             <p className="text-[11px] text-muted-foreground mt-1">
               Upload your latest statement to refresh your Leak Score.
             </p>

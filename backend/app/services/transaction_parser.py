@@ -4,6 +4,12 @@ import re
 from datetime import datetime
 from typing import Any
 
+from app.services.financial_intelligence import (
+    RecurringPaymentDetector,
+    TransactionExtractor,
+    TransactionNormalizer,
+)
+
 
 KNOWN_SUBSCRIPTION_MERCHANTS = {
     "netflix", "spotify", "amazon", "prime", "disney", "apple", "google",
@@ -23,6 +29,13 @@ MERCHANT_CATEGORIES = {
 
 def parse_csv_transactions(content: str) -> list[dict[str, Any]]:
     """Parse CSV bank statement export."""
+    extractor = TransactionExtractor()
+    normalizer = TransactionNormalizer()
+    rows, _ = extractor.extract(content, "statement.csv")
+    records, _ = normalizer.normalize(rows, "csv")
+    if records:
+        return [_legacy_transaction(record) for record in records]
+
     transactions = []
     reader = csv.DictReader(io.StringIO(content))
 
@@ -71,6 +84,13 @@ def parse_csv_transactions(content: str) -> list[dict[str, Any]]:
 
 def parse_text_transactions(content: str) -> list[dict[str, Any]]:
     """Parse plain text SMS/email exports."""
+    extractor = TransactionExtractor()
+    normalizer = TransactionNormalizer()
+    rows, _ = extractor.extract(content, "statement.txt")
+    records, _ = normalizer.normalize(rows, "text")
+    if records:
+        return [_legacy_transaction(record) for record in records]
+
     transactions = []
     patterns = [
         r"(?:Rs\.?|INR|USD|\$|₹)\s*([\d,]+\.?\d*)",
@@ -107,6 +127,42 @@ def parse_text_transactions(content: str) -> list[dict[str, Any]]:
 
 def detect_recurring_patterns(transactions: list[dict]) -> list[dict]:
     """Detect recurring payment patterns from transaction list."""
+    try:
+        normalizer = TransactionNormalizer()
+        rows = [
+            {
+                "id": tx.get("id"),
+                "merchant": tx.get("merchant"),
+                "description": tx.get("description", tx.get("merchant", "")),
+                "amount": tx.get("amount"),
+                "currency": tx.get("currency", "USD"),
+                "date": tx.get("date") or tx.get("transaction_date"),
+                "account": tx.get("account"),
+                "reference": tx.get("reference"),
+                "raw": tx,
+            }
+            for tx in transactions
+        ]
+        records, _ = normalizer.normalize(rows, "legacy")
+        detected, _ = RecurringPaymentDetector().detect(records)
+        if detected:
+            return [
+                {
+                    "merchant": item.merchant,
+                    "amount": item.amount,
+                    "frequency": item.frequency,
+                    "occurrences": item.occurrences,
+                    "confidence": item.confidence,
+                    "transaction_ids": item.transaction_ids,
+                    "next_expected_payment": item.next_expected_payment,
+                    "reasoning": item.reasoning,
+                    "explanation": item.explanation,
+                }
+                for item in detected
+            ]
+    except Exception:
+        pass
+
     merchant_groups: dict[str, list] = {}
 
     for tx in transactions:
@@ -170,7 +226,7 @@ def _infer_frequency(transactions: list[dict]) -> str:
     if 75 <= average <= 110:
         return "quarterly"
     if 300 <= average <= 430:
-        return "annual"
+        return "yearly"
     return "unknown"
 
 
@@ -192,3 +248,23 @@ def _extract_merchant(line: str) -> str:
             return known.title()
     words = line.split()
     return " ".join(words[:3]) if words else "Unknown"
+
+
+def _legacy_transaction(record) -> dict[str, Any]:
+    return {
+        "id": record.id,
+        "merchant": record.normalized_merchant,
+        "normalized_merchant": record.normalized_merchant,
+        "amount": record.amount,
+        "currency": record.currency,
+        "date": record.transaction_date,
+        "transaction_date": record.transaction_date,
+        "description": record.description,
+        "account": record.account,
+        "reference": record.reference,
+        "category": record.category,
+        "is_recurring": False,
+        "frequency": "unknown",
+        "confidence": record.confidence,
+        "reasoning": record.reasoning,
+    }

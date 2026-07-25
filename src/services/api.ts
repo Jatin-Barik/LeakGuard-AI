@@ -15,7 +15,9 @@ async function fetchAPI<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    const payload = await res.json().catch(() => null);
+    const message = payload?.error?.message ?? payload?.detail ?? `API error: ${res.status} ${res.statusText}`;
+    throw new Error(message);
   }
 
   return res.json();
@@ -38,7 +40,7 @@ export const api = {
     });
     if (!res.ok) {
       const error = await res.json().catch(() => null);
-      throw new Error(error?.detail ?? "Upload failed");
+      throw new Error(error?.error?.message ?? error?.detail ?? "Upload failed");
     }
     return res.json();
   },

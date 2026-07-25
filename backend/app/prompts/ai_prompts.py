@@ -10,13 +10,20 @@ Transaction:
 - Date: {date}
 - Description: {description}
 
-Return a JSON object with:
+Return ONLY a JSON object with:
 {{
-  "category": "streaming|music|cloud|fitness|insurance|software|gaming|news|utilities|loan|other",
-  "is_recurring": true/false,
-  "frequency": "weekly|monthly|quarterly|annual|unknown",
   "confidence": 0.0-1.0,
-  "reasoning": "brief explanation"
+  "reasoning": ["specific evidence from merchant/description/amount/date"],
+  "explanation": "human-readable explanation of the decision",
+  "recommendations": ["optional next best action"],
+  "metadata": {{
+    "category": "Entertainment|Food|Shopping|Travel|Utilities|Cloud|Software|Education|Insurance|Healthcare|Gaming|Music|Finance|Other",
+    "is_recurring": true/false,
+    "frequency": "weekly|monthly|quarterly|yearly|irregular|unknown"
+  }},
+  "category": "Entertainment|Food|Shopping|Travel|Utilities|Cloud|Software|Education|Insurance|Healthcare|Gaming|Music|Finance|Other",
+  "is_recurring": true/false,
+  "frequency": "weekly|monthly|quarterly|yearly|irregular|unknown"
 }}
 
 Known subscription merchants include: Netflix, Spotify, Amazon Prime, Disney+, Apple, Google, Adobe, OpenAI, Planet Fitness, etc.
@@ -35,15 +42,25 @@ Price Hikes:
 Duplicate Groups:
 {duplicates_json}
 
-Return a JSON object with:
+Return ONLY a JSON object with the standard LeakGuard decision envelope:
 {{
-  "overall": 0-100,
-  "unused_subscriptions": 0-100,
-  "duplicate_subscriptions": 0-100,
-  "price_hikes": 0-100,
-  "large_expenses": 0-100,
-  "spending_trend": 0-100,
-  "reasoning": ["reason1", "reason2", ...]
+  "confidence": 0.0-1.0,
+  "reasoning": ["reason1", "reason2"],
+  "explanation": "plain-English score explanation",
+  "recommendations": ["highest impact action"],
+  "metadata": {{
+    "overall_score": 0-100,
+    "breakdown": {{
+      "unused_subscriptions": 0-100,
+      "duplicate_subscriptions": 0-100,
+      "price_hikes": 0-100,
+      "large_expenses": 0-100,
+      "spending_trend": 0-100
+    }},
+    "monthly_waste": number,
+    "annual_waste": number,
+    "risk_level": "low|medium|high"
+  }}
 }}
 
 Scoring guidelines:
@@ -63,23 +80,27 @@ Data:
 Usage patterns:
 {usage_json}
 
-Return a JSON array of recommendations:
+Return ONLY a JSON array of recommendations, each using the standard LeakGuard decision envelope:
 [{{
-  "action": "cancel|downgrade|pause|negotiate|bundle|keep",
-  "title": "short title",
-  "description": "what to do",
-  "merchant": "merchant name",
-  "estimated_monthly_savings": number,
-  "estimated_annual_savings": number,
   "confidence": 0.0-1.0,
-  "reason": "detailed explanation of WHY",
-  "priority": "low|medium|high"
+  "reasoning": ["specific user-data evidence"],
+  "explanation": "why this action is recommended",
+  "recommendations": ["Cancel|Pause|Downgrade|Bundle|Keep"],
+  "metadata": {{
+    "action": "Cancel|Pause|Downgrade|Bundle|Keep",
+    "title": "short title",
+    "merchant": "merchant name",
+    "estimated_monthly_savings": number,
+    "estimated_yearly_savings": number,
+    "priority": "low|medium|high",
+    "reason": "detailed explanation of WHY"
+  }}
 }}]
 
 Every recommendation MUST include a clear reason explaining WHY based on the data.
 """
 
-FINANCIAL_ADVISOR_PROMPT = """You are LeakGuard AI's Financial Advisor — a friendly, expert assistant.
+FINANCIAL_ADVISOR_PROMPT = """You are LeakGuard AI's Financial Advisor - a friendly, expert assistant.
 
 User's financial context:
 - Monthly subscription spend: {monthly_spend}

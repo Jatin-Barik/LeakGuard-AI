@@ -14,9 +14,13 @@ export const siteConfig = {
 export const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { title: "Upload", href: "/upload", icon: "Upload" },
+  { title: "Transactions", href: "/transactions", icon: "ReceiptText" },
   { title: "Subscriptions", href: "/subscriptions", icon: "CreditCard" },
+  { title: "Leak Score", href: "/leak-score", icon: "Gauge" },
   { title: "Analytics", href: "/analytics", icon: "BarChart3" },
   { title: "AI Advisor", href: "/advisor", icon: "MessageSquare" },
   { title: "Recommendations", href: "/recommendations", icon: "Sparkles" },
-  { title: "Export", href: "/export", icon: "Download" },
+  { title: "Report", href: "/export", icon: "Download" },
+  { title: "Profile", href: "/profile", icon: "UserCircle" },
+  { title: "Settings", href: "/settings", icon: "Settings" },
 ] as const;

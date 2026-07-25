@@ -1,5 +1,6 @@
 import json
 import re
+import asyncio
 from typing import Any, Optional
 
 from app.core.config import get_settings
@@ -34,7 +35,7 @@ class GeminiService:
         if model is None:
             return self._fallback_response(prompt)
         try:
-            response = model.generate_content(prompt)
+            response = await asyncio.to_thread(model.generate_content, prompt)
             return response.text
         except Exception as e:
             return f"AI service error: {str(e)}. Using fallback analysis."

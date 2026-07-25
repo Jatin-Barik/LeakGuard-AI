@@ -25,6 +25,8 @@ const acceptedTypes = [
   { type: "sms", label: "SMS Export", icon: MessageSquare, accept: ".txt,.json" },
   { type: "email", label: "Email Export", icon: Mail, accept: ".eml,.mbox" },
 ];
+const maxFileSize = 10 * 1024 * 1024;
+const acceptedExtensions = new Set(["pdf", "csv", "xlsx", "xls", "txt", "json", "eml", "mbox"]);
 
 interface UploadCenterProps {
   onUploadComplete?: (transactionCount: number) => void;
@@ -35,21 +37,35 @@ export function UploadCenter({ onUploadComplete }: UploadCenterProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [lastResult, setLastResult] = useState<{ transactions: number; subscriptions: number } | null>(null);
 
   const processUpload = useCallback(async (files: FileList | File[]) => {
     const selectedFiles = Array.from(files);
+    const invalidFile = selectedFiles.find((file) => {
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      return !acceptedExtensions.has(extension) || file.size === 0 || file.size > maxFileSize;
+    });
+
+    if (invalidFile) {
+      toast.error(`${invalidFile.name} must be a supported file under 10 MB.`);
+      return;
+    }
+
     setUploading(true);
     setProgress(0);
     setCompleted(false);
+    setLastResult(null);
 
     try {
       setProgress(20);
       const results = await Promise.all(selectedFiles.map((file) => api.uploadFile(file)));
       setProgress(85);
       const transactionCount = results.reduce((total, result) => total + result.transactions_extracted, 0);
+      const subscriptionCount = results.reduce((total, result) => total + result.recurring_detected, 0);
       setProgress(100);
       setCompleted(true);
-      toast.success(`Processed ${selectedFiles.length} file(s) — ${transactionCount} transactions extracted`);
+      setLastResult({ transactions: transactionCount, subscriptions: subscriptionCount });
+      toast.success(`Processed ${selectedFiles.length} file(s): ${transactionCount} transactions extracted`);
       onUploadComplete?.(transactionCount);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "We couldn't process that file.");
@@ -108,7 +124,7 @@ export function UploadCenter({ onUploadComplete }: UploadCenterProps) {
                   <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Analysis Complete!</h3>
                   <p className="text-muted-foreground text-sm">
-                    47 transactions extracted, 12 subscriptions detected
+                    {lastResult?.transactions ?? 0} transactions extracted, {lastResult?.subscriptions ?? 0} subscriptions detected
                   </p>
                 </motion.div>
               ) : uploading ? (
