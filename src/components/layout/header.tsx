@@ -1,10 +1,12 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { demoUser } from "@/lib/demo-data";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface HeaderProps {
   title: string;
@@ -12,9 +14,12 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const initials = demoUser.name
+  const { user, enabled, signOut } = useAuth();
+  const displayName = user?.user_metadata.full_name ?? user?.user_metadata.name ?? demoUser.name;
+  const email = user?.email ?? demoUser.email;
+  const initials = displayName
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("");
 
   return (
@@ -47,9 +52,14 @@ export function Header({ title, subtitle }: HeaderProps) {
             </AvatarFallback>
           </Avatar>
           <div className="hidden lg:block">
-            <p className="text-sm font-medium">{demoUser.name}</p>
-            <p className="text-xs text-muted-foreground">{demoUser.email}</p>
+            <p className="text-sm font-medium">{displayName}</p>
+            <p className="text-xs text-muted-foreground">{email}</p>
           </div>
+          {enabled && (
+            <Button variant="ghost" size="icon" aria-label="Log out" onClick={() => signOut().catch(() => toast.error("Could not sign you out"))}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </header>
