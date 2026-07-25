@@ -2,13 +2,26 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Send, Bot, User, Sparkles, Mic, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { advisorQuickPrompts } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/utils";
 import type { ChatMessage } from "@/types";
+import { api } from "@/services/api";
+import { demoDashboardStats, demoSubscriptions } from "@/lib/demo-data";
+
+type SpeechRecognitionInstance = {
+  lang: string;
+  interimResults: boolean;
+  start: () => void;
+  onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+  onend: () => void;
+  onerror: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
 const demoResponses: Record<string, string> = {
   "where am i wasting money?":
@@ -49,7 +62,9 @@ export function AIAdvisorChat() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageSequence = useRef(0);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -58,28 +73,74 @@ export function AIAdvisorChat() {
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
 
-    const now = Date.now();
+    messageSequence.current += 1;
+    const sentAt = new Date().toISOString();
     const userMsg: ChatMessage = {
-      id: `user_${now}`,
+      id: `user_${messageSequence.current}`,
       role: "user",
       content: text,
-      timestamp: new Date(now).toISOString(),
+      timestamp: sentAt,
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
 
-    await new Promise((r) => setTimeout(r, 1200 + Math.random() * 800));
+    let response: string;
+    try {
+      const result = await api.chatAdvisor(text, {
+        monthly_spend: demoDashboardStats.totalMonthlySpend,
+        subscription_count: demoDashboardStats.activeSubscriptions,
+        leak_score: demoDashboardStats.leakScore,
+        potential_savings: demoDashboardStats.potentialSavings,
+        subscriptions: demoSubscriptions,
+      });
+      response = result.response;
+    } catch {
+      await new Promise((r) => setTimeout(r, 650));
+      response = getResponse(text);
+    }
 
-    const replyTime = Date.now();
+    messageSequence.current += 1;
     const assistantMsg: ChatMessage = {
-      id: `assistant_${replyTime}`,
+      id: `assistant_${messageSequence.current}`,
       role: "assistant",
-      content: getResponse(text),
-      timestamp: new Date(replyTime).toISOString(),
+      content: response,
+      timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, assistantMsg]);
     setIsTyping(false);
+  };
+
+  const startListening = () => {
+    if (typeof window === "undefined") return;
+    const BrowserSpeechRecognition = (window as typeof window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    }).SpeechRecognition ?? (window as typeof window & {
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    }).webkitSpeechRecognition;
+
+    if (!BrowserSpeechRecognition) {
+      setInput("Voice input isn't supported by this browser. Please type your question.");
+      return;
+    }
+
+    const recognition = new BrowserSpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => setInput(event.results[0][0].transcript);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    setIsListening(true);
+    recognition.start();
+  };
+
+  const speakLastResponse = () => {
+    const lastResponse = [...messages].reverse().find((message) => message.role === "assistant");
+    if (lastResponse && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(lastResponse.content));
+    }
   };
 
   return (
@@ -175,6 +236,25 @@ export function AIAdvisorChat() {
               className="flex-1 bg-secondary/30"
               disabled={isTyping}
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={startListening}
+              disabled={isTyping}
+              aria-label="Ask using your voice"
+            >
+              <Mic className={isListening ? "h-4 w-4 text-red-400 animate-pulse" : "h-4 w-4"} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={speakLastResponse}
+              aria-label="Read the latest response aloud"
+            >
+              <Volume2 className="h-4 w-4" />
+            </Button>
             <Button type="submit" variant="gradient" size="icon" disabled={isTyping || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>

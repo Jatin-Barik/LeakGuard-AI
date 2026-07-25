@@ -11,6 +11,15 @@ KNOWN_SUBSCRIPTION_MERCHANTS = {
     "microsoft", "dropbox", "icloud", "nyt", "new york times", "gym",
 }
 
+MERCHANT_CATEGORIES = {
+    "netflix": "streaming", "prime": "streaming", "amazon": "streaming", "disney": "streaming", "hulu": "streaming", "hbo": "streaming",
+    "spotify": "music", "apple music": "music", "youtube": "music",
+    "google one": "cloud", "icloud": "cloud", "dropbox": "cloud",
+    "planet fitness": "fitness", "gym": "fitness",
+    "adobe": "software", "openai": "software", "chatgpt": "software", "microsoft": "software",
+    "nyt": "news", "new york times": "news", "insurance": "insurance", "loan": "loan",
+}
+
 
 def parse_csv_transactions(content: str) -> list[dict[str, Any]]:
     """Parse CSV bank statement export."""
@@ -51,7 +60,9 @@ def parse_csv_transactions(content: str) -> list[dict[str, Any]]:
             "merchant": merchant.strip(),
             "amount": amount,
             "date": date_str,
+            "category": _categorize_merchant(merchant),
             "is_recurring": is_recurring,
+            "frequency": "monthly" if is_recurring else "unknown",
             "confidence": 0.85 if is_recurring else 0.5,
         })
 
@@ -85,7 +96,9 @@ def parse_text_transactions(content: str) -> list[dict[str, Any]]:
                 "merchant": merchant,
                 "amount": amount,
                 "date": datetime.now().isoformat(),
+                "category": _categorize_merchant(merchant),
                 "is_recurring": _is_likely_subscription(merchant),
+                "frequency": "monthly" if _is_likely_subscription(merchant) else "unknown",
                 "confidence": 0.7,
             })
 
@@ -112,7 +125,7 @@ def detect_recurring_patterns(transactions: list[dict]) -> list[dict]:
             recurring.append({
                 "merchant": txs[0]["merchant"],
                 "amount": round(avg_amount, 2),
-                "frequency": "monthly",
+                "frequency": _infer_frequency(txs),
                 "occurrences": len(txs),
                 "confidence": 0.9 if variance < avg_amount * 0.1 else 0.7,
                 "transaction_ids": [t["id"] for t in txs],
@@ -133,6 +146,44 @@ def detect_recurring_patterns(transactions: list[dict]) -> list[dict]:
 def _is_likely_subscription(merchant: str) -> bool:
     merchant_lower = merchant.lower()
     return any(known in merchant_lower for known in KNOWN_SUBSCRIPTION_MERCHANTS)
+
+
+def _categorize_merchant(merchant: str) -> str:
+    merchant_lower = merchant.lower()
+    for keyword, category in MERCHANT_CATEGORIES.items():
+        if keyword in merchant_lower:
+            return category
+    return "other"
+
+
+def _infer_frequency(transactions: list[dict]) -> str:
+    """Infer a cadence from dates while gracefully handling bank-specific formats."""
+    dates = sorted(date for tx in transactions if (date := _parse_date(str(tx.get("date", "")))))
+    if len(dates) < 2:
+        return "monthly"
+    intervals = [(later - earlier).days for earlier, later in zip(dates, dates[1:])]
+    average = sum(intervals) / len(intervals)
+    if 5 <= average <= 9:
+        return "weekly"
+    if 20 <= average <= 40:
+        return "monthly"
+    if 75 <= average <= 110:
+        return "quarterly"
+    if 300 <= average <= 430:
+        return "annual"
+    return "unknown"
+
+
+def _parse_date(value: str):
+    for pattern in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(value[:10], pattern)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _extract_merchant(line: str) -> str:

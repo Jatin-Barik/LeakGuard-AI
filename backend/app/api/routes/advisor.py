@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.gemini_service import gemini_service
 
@@ -8,7 +8,7 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     message: str
-    context: dict = {}
+    context: dict = Field(default_factory=dict)
 
 
 class ChatResponse(BaseModel):

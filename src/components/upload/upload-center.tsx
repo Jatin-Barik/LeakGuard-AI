@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { api } from "@/services/api";
 
 const acceptedTypes = [
   { type: "pdf", label: "PDF Statement", icon: FileText, accept: ".pdf" },
@@ -35,21 +36,26 @@ export function UploadCenter({ onUploadComplete }: UploadCenterProps) {
   const [progress, setProgress] = useState(0);
   const [completed, setCompleted] = useState(false);
 
-  const simulateUpload = useCallback(async (files: FileList | File[]) => {
+  const processUpload = useCallback(async (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
     setUploading(true);
     setProgress(0);
     setCompleted(false);
 
-    const steps = [15, 35, 55, 75, 90, 100];
-    for (const step of steps) {
-      await new Promise((r) => setTimeout(r, 400));
-      setProgress(step);
+    try {
+      setProgress(20);
+      const results = await Promise.all(selectedFiles.map((file) => api.uploadFile(file)));
+      setProgress(85);
+      const transactionCount = results.reduce((total, result) => total + result.transactions_extracted, 0);
+      setProgress(100);
+      setCompleted(true);
+      toast.success(`Processed ${selectedFiles.length} file(s) — ${transactionCount} transactions extracted`);
+      onUploadComplete?.(transactionCount);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "We couldn't process that file.");
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
-    setCompleted(true);
-    toast.success(`Processed ${Array.from(files).length} file(s) — 47 transactions extracted`);
-    onUploadComplete?.(47);
   }, [onUploadComplete]);
 
   const handleDrop = useCallback(
@@ -57,15 +63,15 @@ export function UploadCenter({ onUploadComplete }: UploadCenterProps) {
       e.preventDefault();
       setIsDragging(false);
       if (e.dataTransfer.files.length > 0) {
-        simulateUpload(e.dataTransfer.files);
+        processUpload(e.dataTransfer.files);
       }
     },
-    [simulateUpload]
+    [processUpload]
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      simulateUpload(e.target.files);
+      processUpload(e.target.files);
     }
   };
 

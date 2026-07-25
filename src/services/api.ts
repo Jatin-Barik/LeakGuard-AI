@@ -24,14 +24,22 @@ async function fetchAPI<T>(
 export const api = {
   health: () => fetchAPI<{ status: string }>("/api/health"),
 
-  uploadFile: async (file: File) => {
+  uploadFile: async (file: File): Promise<{
+    transactions_extracted: number;
+    recurring_detected: number;
+    message: string;
+    mode?: "demo";
+  }> => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${API_BASE}/api/upload`, {
+    const res = await fetch("/api/upload", {
       method: "POST",
       body: formData,
     });
-    if (!res.ok) throw new Error("Upload failed");
+    if (!res.ok) {
+      const error = await res.json().catch(() => null);
+      throw new Error(error?.detail ?? "Upload failed");
+    }
     return res.json();
   },
 
@@ -54,9 +62,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  chatAdvisor: (message: string, context: Record<string, unknown> = {}) =>
-    fetchAPI<{ response: string }>("/api/advisor/chat", {
+  chatAdvisor: async (message: string, context: Record<string, unknown> = {}) => {
+    const res = await fetch("/api/advisor", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, context }),
-    }),
+    });
+    if (!res.ok) throw new Error("Advisor is temporarily unavailable");
+    return res.json() as Promise<{ response: string; model?: string }>;
+  },
 };

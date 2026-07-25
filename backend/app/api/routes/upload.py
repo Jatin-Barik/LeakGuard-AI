@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from pydantic import BaseModel
 
 from app.services.transaction_parser import (
@@ -6,6 +6,8 @@ from app.services.transaction_parser import (
     parse_csv_transactions,
     parse_text_transactions,
 )
+from app.services.file_extraction import extract_upload_text
+from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 
@@ -19,21 +21,24 @@ class UploadResponse(BaseModel):
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...)):
+    enforce_rate_limit(request.client.host if request.client else "unknown")
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
     content = await file.read()
     filename = file.filename.lower()
+    if len(content) == 0 or len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Files must be between 1 byte and 10 MB")
 
     try:
-        text_content = content.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Unable to decode file. Try CSV or text format.")
+        text_content = extract_upload_text(content, filename)
+    except UnicodeDecodeError as error:
+        raise HTTPException(status_code=400, detail="Unable to decode this text file as UTF-8") from error
 
     if filename.endswith(".csv"):
         transactions = parse_csv_transactions(text_content)
-    elif filename.endswith((".txt", ".json", ".eml")):
+    elif filename.endswith((".txt", ".json", ".eml", ".mbox", ".pdf", ".xlsx", ".xls")):
         transactions = parse_text_transactions(text_content)
     else:
         transactions = parse_text_transactions(text_content)
